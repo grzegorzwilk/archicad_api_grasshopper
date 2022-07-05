@@ -1,6 +1,7 @@
 import json
 import urllib2 as rq
 from collections import OrderedDict
+import  xml.etree.ElementTree as e
 # import requests
 try: 
 	import scriptcontext as sc
@@ -13,6 +14,67 @@ except:
 
 # """
 
+def extract_xml_from_bimx(bimxFile):
+	with open(bimxFile,'r') as file:
+	# with open(bimxFile,'r',encoding='utf-8') as file:
+		data = file.readlines()
+	file.close()
+
+
+	for i,j in enumerate(data):
+		# print (i,j)
+		if "<Metadata" in j:
+			a = i 
+		if "</Metadata" in j:
+			b = i+1
+
+	block = (a,b)
+	xml = []
+	for i in xrange(block[0],block[1]):
+		xml.append(data[i])
+		xmlString = ''.join(xml)
+	return xmlString
+
+def parseXML(xmlString):
+	# parser = e.XMLParser(strip_cdata = False)
+	# xmlParsed = e.parse(xmlString,parser)
+	xmlParsed = e.fromstring(xmlString)
+	root = xmlParsed
+	return root
+
+def addItem(array,item):
+    array.append(item)
+    
+def openFolder(array,folder):
+    for f in folder:
+        if f.tag=='Item':addItem(array,f)
+        if f.tag=='Folder':openFolder(array,f)
+
+def getLayouts(itemsAndFolders):
+    _layoutName = []
+    _layoutID   = []
+    _items= []
+    for j,i in enumerate(itemsAndFolders[0]):
+        if i.attrib.has_key('type') == False:
+            if i.tag=='Item':addItem(_items,i)
+            if i.tag=='Folder':openFolder(_items,i)
+    for item in _items:
+        
+        _layoutName.append(item.attrib['title'])
+        _layoutID.append(item.attrib['id'])
+    sc.sticky['layoutNames'] = _layoutName
+    sc.sticky['layoutID'] = _layoutID
+    return _layoutName,_layoutID
+
+def get_layouts():
+	"""get bimx llayouts from sticky global"""
+	try:
+		_layoutName = sc.sticky['layoutNames']
+		_layoutID = sc.sticky['layoutID']
+		
+		return dict(zip(_layoutName,_layoutID))
+	except:
+		return False
 def set_global_toggle(on_off):
 	"""
 	global turnoff/on variable
@@ -26,6 +88,8 @@ def set_global_toggle(on_off):
 			sc.sticky['toggle'] = False
 	except:
 		print 'Run outside GH'
+
+
 def get_global_toggle():
 	"""Gets global toggle"""
 	try:
@@ -35,6 +99,8 @@ def get_global_toggle():
 		return False
 
 def set_active_port(ports):
+	''' 
+	'''
 	if isinstance(ports,int):
 		ports=[ports]
 	try:
@@ -103,7 +169,7 @@ def open_ports():
 	"""
 	Scans scopes of ports and return list of open ports (open ARCHICAD copies)
 	"""
-	scope = (19723,19724)
+	scope = (19723,19726)
 	# scope = (19723,19743)
 	ports = [i for i in range(scope[0],scope[1]+1)if check_port(i)]
 	set_ports(ports)
